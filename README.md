@@ -50,7 +50,7 @@ For rapping, the AI uses a fine-tuned Qwen model to generate context-aware rap b
 
 ### Backend AI Models
 
-- **Rapping**: Fine-tuned Qwen model for generating rap lyrics  
+- **Rapping**: Fine-tuned LLM model for generating rap lyrics  
 - **Singing**: Gemini 2.5 Pro for beat understanding and singing lyrics generation  
 - **Beat Generation**: Facebook MusicGen  
 - **Text-to-Speech**: Tacotron2 (tts_models/en/ljspeech)  
