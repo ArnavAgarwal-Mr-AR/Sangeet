@@ -94,7 +94,7 @@ export default function Login() {
         </div>
 
         <div className="mt-8 bg-[#1A1A1A] p-8 rounded-2xl border border-gray-800/50 shadow-xl">
-          <form className="space-y-6" onSubmit={handleLogin}>
+          <form className="space-y-6" onSubmit={handleLogin} autoComplete="off">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300">
                 Email address
@@ -108,6 +108,7 @@ export default function Login() {
                   name="email"
                   type="email"
                   required
+                  autoComplete="off"
                   className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-700 rounded-lg bg-[#2A2A2A] text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="Enter your email"
                   value={email}
@@ -129,6 +130,7 @@ export default function Login() {
                   name="password"
                   type="password"
                   required
+                  autoComplete="new-password"
                   className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-700 rounded-lg bg-[#2A2A2A] text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="Enter your password"
                   value={password}

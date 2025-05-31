@@ -6,6 +6,7 @@ from note_seq import midi_io
 from pydub import AudioSegment
 import subprocess
 
+
 SOUNDFONT = "/kaggle/working/soundfont.sf2"
 TMP_DIR = "/kaggle/working"
 
@@ -25,6 +26,11 @@ def generate_mock_drum_pattern(length=32):
     return pattern
 
 def generate_beat(prompt: str, out_path: str):
+
+    
+    print(f"Generating beat for prompt: {prompt}")
+    print(f"Output path: {out_path}")
+
     pattern = generate_mock_drum_pattern()
 
     sequence = music_pb2.NoteSequence()
@@ -57,3 +63,4 @@ def generate_beat(prompt: str, out_path: str):
     beat = beat[:4000]
     beat.export(out_path, format="wav")
     print(f"✅ Real beat saved at {out_path}")
+

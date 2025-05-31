@@ -24,8 +24,6 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
   settings,
   onSettingsChange,
 }) => {
-  if (!isOpen) return null;
-
   const handleChange = (
     e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement | HTMLInputElement>
   ) => {
@@ -34,14 +32,23 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
 
   return (
     <div
-      className={`w-80 bg-gradient-to-b from-black via-blue-900/30 to-blue-800/20 p-6 border-r border-gray-700/50 shadow-xl rounded-r-2xl flex-shrink-0 overflow-y-auto transition-all duration-1000 ease-in-out transform ml-2 ${
-        isOpen ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'
+      className={`fixed top-0 left-0 h-full w-80 bg-gradient-to-b from-black via-blue-900/30 to-blue-800/20 p-6 border-r border-gray-700/50 shadow-xl rounded-r-2xl flex-shrink-0 overflow-y-auto transition-all duration-500 ease-in-out transform origin-left ${
+        isOpen ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 pointer-events-none'
       }`}
-      style={{ willChange: 'transform, opacity' }}
+      style={{ 
+        willChange: 'transform, opacity',
+        top: '80px', // Account for navbar height
+        zIndex: 30
+      }}
     >
       <div className="flex justify-between items-center mb-4 bg-black/40 p-3 rounded-lg">
         <h2 className="text-lg font-semibold text-gray-100">Settings</h2>
-        <IconButton icon={<FaTimes />} onClick={onClose} className="text-gray-300 bg-black/80 hover:bg-black/60" tooltip="Close Settings" />
+        <IconButton 
+          icon={<FaTimes />} 
+          onClick={onClose} 
+          className="text-gray-300 hover:text-gray-100 rounded-full hover:bg-black/20 transition-all duration-200" 
+          tooltip="Close Settings" 
+        />
       </div>
 
       <div className="space-y-4">
@@ -102,7 +109,7 @@ const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
         onClick={onClose}
         className="mt-6 w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 text-white font-medium rounded-lg shadow-lg transition-all duration-200 ease-in-out transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
       >
-        Save Changes
+        Save & Close
       </button>
     </div>
   );

@@ -25,7 +25,8 @@ export default function VocaliqAppPage() {
   });
 
   const toggleSettingsSidebar = () => {
-    setIsSettingsOpen(!isSettingsOpen);
+    console.log('Toggling settings sidebar, current state:', isSettingsOpen);
+    setIsSettingsOpen(prev => !prev);
   };
 
   // const toggleChatHistory = () => {
@@ -52,7 +53,10 @@ export default function VocaliqAppPage() {
       <main className="flex flex-1 overflow-hidden pt-[80px]">
         <SettingsSidebar
           isOpen={isSettingsOpen}
-          onClose={toggleSettingsSidebar}
+          onClose={() => {
+            console.log('Settings close triggered');
+            setIsSettingsOpen(false);
+          }}
           settings={settings}
           onSettingsChange={handleSettingsChange}
         />
@@ -62,7 +66,7 @@ export default function VocaliqAppPage() {
               <IconButton
                 icon={<FaBars size={20} />}
                 onClick={toggleSettingsSidebar}
-                className="text-gray-400 hover:text-gray-200"
+                className="text-gray-400 hover:text-gray-200 rounded-full hover:bg-black/20 transition-all duration-200"
                 tooltip="Open Settings"
               />
             </div>
