@@ -74,6 +74,7 @@ For rapping, the AI uses a fine-tuned Qwen model to generate context-aware rap b
 
 bash ```
 git clone -b feature https://github.com/ArnavAgarwal-Mr-AR/Sangeet.git
+```
 
 bash ```
 cd frontend
