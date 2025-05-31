@@ -24,5 +24,9 @@ if __name__ == "__main__":
             text_to_speech(line)
             time.sleep(1)
         except KeyboardInterrupt:
+<<<<<<< HEAD
             print("\n🛑 Session ended.")
+=======
+            print("\n Session ended.")
+>>>>>>> 957fad36ec8189a52f9eb4e6227089298cab2127
             break

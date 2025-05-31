@@ -6,8 +6,13 @@ from note_seq import midi_io
 from pydub import AudioSegment
 import subprocess
 
+<<<<<<< HEAD
 SOUNDFONT = "working/soundfont.sf2"
 TMP_DIR = "working"
+=======
+SOUNDFONT = "/kaggle/working/soundfont.sf2"
+TMP_DIR = "/kaggle/working"
+>>>>>>> 957fad36ec8189a52f9eb4e6227089298cab2127
 
 DRUM_PITCHES = [36, 38, 42]  # Kick, Snare, Hi-hat
 

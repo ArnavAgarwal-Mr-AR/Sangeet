@@ -2,7 +2,7 @@ import gradio as gr
 from modules.beat_selector import get_beat_path
 from modules.lyrics_generator import generate_line
 from modules.tts_engine import text_to_speech
-from modules.musicgen import init_musicgen  # ✅ ADD THIS
+from modules.musicgen import init_musicgen
 from utils.audio_utils import play_looped_audio
 import os
 import time
