@@ -70,21 +70,23 @@ For rapping, the AI uses a fine-tuned Qwen model to generate context-aware rap b
 6. Vocals and beat recorded with optional autotune/effects  
 7. Final mix created and saved  
 
-##Usage
+## Usage
 
-bash ```
+Clone Repository
+```
 git clone -b feature https://github.com/ArnavAgarwal-Mr-AR/Sangeet.git
 ```
 
-bash ```
+```
 cd frontend
 ```
 
-bash ```
+Install Dependencies
+```
 npm install
 ```
-
-bash ```
+Run the Application
+```
 npm run dev
 ```
 
