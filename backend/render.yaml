@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: vocaliq-backend
+    env: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
+      - key: PORT
+        value: 8000
+    disk:
+      name: audio-storage
+      mountPath: /app/static
+      sizeGB: 1

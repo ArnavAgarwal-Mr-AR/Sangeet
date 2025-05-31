@@ -2,5 +2,6 @@
 __pycache__/
 .gradio
 beats
-commands
+commands.txt
 env
+app.log

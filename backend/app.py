@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 import os
+from dotenv import load_dotenv
 import soundfile as sf
 from typing import Optional
 from pydantic import BaseModel
@@ -15,6 +16,9 @@ from modules.lyrics_generator import generate_line
 from modules.tts_engine import text_to_speech, mix_beat_with_tts
 from modules.musicgen import init_musicgen
 from utils.audio_utils import play_looped_audio
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -33,8 +37,7 @@ AUDIO_OUTPUT = "tts_output.wav"
 MIXED_OUTPUT = "mixed_output.wav"
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
-# Create static directory if it doesn't exist
-STATIC_DIR = "static"
+STATIC_DIR = os.getenv("STATIC_DIR", "static")
 if not os.path.exists(STATIC_DIR):
     os.makedirs(STATIC_DIR)
 
@@ -63,10 +66,10 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "*").split(","),
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Mount static files directory
@@ -201,5 +204,6 @@ async def get_audio(filename: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    logger.info("Starting FastAPI application")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    logger.info(f"Starting FastAPI application on port {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)
