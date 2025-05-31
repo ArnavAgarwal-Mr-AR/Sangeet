@@ -1,4 +1,5 @@
 # Musicano
+Team: Spinning Wheel
 Our submission to 100xbuildathon2
 
 # AI-Powered Music Collaboration Platform 🎤🤖🎵
