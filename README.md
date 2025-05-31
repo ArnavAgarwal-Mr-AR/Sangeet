@@ -1,4 +1,4 @@
-# Musicano
+# Vocaliq
 Team: Spinning Wheel
 Our submission to 100xbuildathon2
 
