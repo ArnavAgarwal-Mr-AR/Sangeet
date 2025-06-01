@@ -3,7 +3,7 @@
 
 import React, { useState, ChangeEvent, useEffect, useRef } from 'react';
 import { FaUpload, FaPlay, FaArrowUp, FaPlus, FaTimes, FaMicrophone, FaStop } from 'react-icons/fa'; // Using react-icons
-import { generateBeat } from './actions';
+import { generateBeat, BACKEND_URL } from './actions';
 
 interface MainInteractionPanelProps {
   onRun: (data: { prompt: string; vocalFile?: File; beatsFile?: File; generatedAudioUrl?: string }) => void;
@@ -33,10 +33,12 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
   const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
   // Cleanup audio URL when component unmounts
   useEffect(() => {
     return () => {
+      cleanupResources();
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
@@ -115,8 +117,80 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
     }
   };
 
+  const cleanupResources = () => {
+    if (wsConnection) {
+      wsConnection.close();
+      setWsConnection(null);
+    }
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+    }
+  };
+
+  // WebSocket connection effect - only connect when we have an audio URL
+  useEffect(() => {
+    if (!audioUrl) return;
+
+    const connectWebSocket = () => {
+      const ws = new WebSocket(`${BACKEND_URL.replace('http', 'ws')}/ws`);
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setWsConnection(ws);
+        setWsStatus('connected');
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'lyrics') {
+            console.log('New lyrics:', data.content);
+            // You might want to display these lyrics in the UI
+          } else if (data.type === 'audio') {
+            const audioBlob = new Blob([data.content], { type: 'audio/wav' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.play().catch(error => {
+              console.error('Error playing audio:', error);
+            });
+          }
+        } catch (error) {
+          console.error('Error processing WebSocket message:', error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setWsStatus('disconnected');
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setWsStatus('disconnected');
+        // Attempt to reconnect after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+      };
+
+      return ws;
+    };
+
+    const ws = connectWebSocket();
+    return () => {
+      ws.close();
+    };
+  }, [audioUrl]);
+
   const startRecording = async () => {
     try {
+      if (wsStatus !== 'connected') {
+        setError('WebSocket not connected. Please wait...');
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
@@ -127,10 +201,12 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
         }
       };
       
-      mediaRecorder.start(100); // Send data every 100ms
+      mediaRecorder.start(100);
       setAudioState(prev => ({ ...prev, isRecording: true }));
+      setError(null);
     } catch (error) {
       console.error('Error accessing microphone:', error);
+      setError('Failed to access microphone. Please check permissions.');
     }
   };
 
@@ -141,34 +217,6 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
       setAudioState(prev => ({ ...prev, isRecording: false }));
     }
   };
-
-  useEffect(() => {
-    const ws = new WebSocket(`${BACKEND_URL.replace('http', 'ws')}/ws`);
-    
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      setWsConnection(ws);
-    };
-    
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'lyrics') {
-        // Handle new lyrics
-        console.log('New lyrics:', data.content);
-      } else if (data.type === 'audio') {
-        // Handle AI rap audio
-        const audioBlob = new Blob([data.content], { type: 'audio/wav' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        // Play the AI rap
-        const audio = new Audio(audioUrl);
-        audio.play();
-      }
-    };
-    
-    return () => {
-      ws.close();
-    };
-  }, []);
 
   return (
     <div className="flex-grow p-6 flex flex-col items-center justify-start pt-55">
@@ -316,26 +364,46 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
           )}
         </div>
 
-        <div className="flex gap-4 mt-4">
-          <button
-            onClick={audioState.isRecording ? stopRecording : startRecording}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full ${
-              audioState.isRecording 
-                ? 'bg-red-600 hover:bg-red-700' 
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
-          >
-            {audioState.isRecording ? (
-              <>
-                <FaStop /> Stop Recording
-              </>
-            ) : (
-              <>
-                <FaMicrophone /> Start Recording
-              </>
-            )}
-          </button>
-        </div>
+        {/* Add WebSocket status indicator */}
+        {audioUrl && (
+          <div className="flex items-center gap-2 mt-2">
+            <div className={`w-2 h-2 rounded-full ${
+              wsStatus === 'connected' ? 'bg-green-500' :
+              wsStatus === 'connecting' ? 'bg-yellow-500' :
+              'bg-red-500'
+            }`} />
+            <span className="text-sm text-gray-400">
+              {wsStatus === 'connected' ? 'Connected' :
+               wsStatus === 'connecting' ? 'Connecting...' :
+               'Disconnected'}
+            </span>
+          </div>
+        )}
+
+        {/* Recording button */}
+        {audioUrl && (
+          <div className="flex gap-4 mt-4">
+            <button
+              onClick={audioState.isRecording ? stopRecording : startRecording}
+              disabled={wsStatus !== 'connected'}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+                audioState.isRecording 
+                  ? 'bg-red-600 hover:bg-red-700' 
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } ${wsStatus !== 'connected' ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {audioState.isRecording ? (
+                <>
+                  <FaStop /> Stop Recording
+                </>
+              ) : (
+                <>
+                  <FaMicrophone /> Start Recording
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
