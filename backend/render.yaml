@@ -9,7 +9,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.10.11
       - key: PORT # Render will use this $PORT in the dockerCommand
-        value: 8000 # The port your app will listen on
+        value: 10000 # The port your app will listen on
     disk:
       name: audio-storage
       mountPath: /app/static

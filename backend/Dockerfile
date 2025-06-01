@@ -21,8 +21,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the port your app runs on
-EXPOSE ${PORT:-8000}
+EXPOSE ${PORT:-10000}
 
 # Command to run the application
 ENTRYPOINT ["uvicorn"]
-CMD ["app:app", "--host", "0.0.0.0", "--port", "${PORT:-8000}"] 
+CMD ["app:app", "--host", "0.0.0.0", "--port", "${PORT:-10000}"] 
