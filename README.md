@@ -1,5 +1,6 @@
 # Vocaliq
 Team: Spinning Wheel
+
 Our submission to 100xbuildathon2
 
 # AI-Powered Music Collaboration Platform 🎤🤖🎵
@@ -89,6 +90,3 @@ Run the Application
 ```
 npm run dev
 ```
-
-
-
