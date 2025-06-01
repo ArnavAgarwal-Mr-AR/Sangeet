@@ -1,16 +1,22 @@
 import logging
 from TTS.api import TTS
+import torch
 import soundfile as sf
 from pydub import AudioSegment
 import os
 
 logger = logging.getLogger(__name__)
 
-# Load TTS model once
+# Load TTS model with GPU support
 try:
     logger.info("Initializing TTS model")
-    tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC", progress_bar=False)
-    logger.info("TTS model loaded successfully")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    tts = TTS(
+        model_name="tts_models/en/ljspeech/tacotron2-DDC",
+        progress_bar=False,
+        gpu=torch.cuda.is_available()
+    )
+    logger.info(f"TTS model loaded successfully on {device}")
 except Exception as e:
     logger.error(f"Failed to initialize TTS model: {str(e)}")
     raise
@@ -23,7 +29,12 @@ def text_to_speech(text: str, out_path="tts_output.wav"):
         logger.info(f"Converting text to speech: {text}")
         
         try:
-            tts.tts_to_file(text=text, file_path=out_path)
+            # Use GPU if available
+            tts.tts_to_file(
+                text=text,
+                file_path=out_path,
+                gpu=torch.cuda.is_available()
+            )
         except Exception as e:
             logger.error(f"Failed to generate speech: {str(e)}")
             raise

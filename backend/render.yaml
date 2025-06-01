@@ -10,6 +10,8 @@ services:
         value: 3.10.11
       - key: PORT # Render will use this $PORT in the dockerCommand
         value: 10000 # The port your app will listen on
+      - key: CUDA_VISIBLE_DEVICES
+        value: "0"  # Use first GPU if available
     disk:
       name: audio-storage
       mountPath: /app/static
@@ -19,3 +21,7 @@ services:
         - backend/**
     buildCache:
       enabled: true
+    # Add GPU configuration if your deployment platform supports it
+    gpu:
+      type: nvidia-tesla-t4  # or whatever GPU type is available
+      count: 1

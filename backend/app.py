@@ -12,6 +12,10 @@ from pydantic import BaseModel
 from fastapi.websockets import WebSocketDisconnect
 import asyncio
 import json
+import torch
+import platform
+import subprocess
+import sys
 
 # Import all required modules
 from modules.beat_selector import get_beat_path
@@ -78,15 +82,64 @@ app.add_middleware(
 # Mount static files directory
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# Initialize MusicGen on startup
+# Add GPU detection function
+def check_gpu_availability():
+    try:
+        if torch.cuda.is_available():
+            gpu_count = torch.cuda.device_count()
+            gpu_info = []
+            for i in range(gpu_count):
+                gpu_info.append({
+                    'name': torch.cuda.get_device_name(i),
+                    'memory': torch.cuda.get_device_properties(i).total_memory
+                })
+            logger.info(f"GPU(s) available: {gpu_info}")
+            return True, gpu_info
+        else:
+            logger.info("No GPU available, using CPU")
+            return False, None
+    except Exception as e:
+        logger.error(f"Error checking GPU availability: {str(e)}")
+        return False, None
+
+# Add system info logging
+def log_system_info():
+    try:
+        system_info = {
+            'platform': platform.platform(),
+            'python_version': sys.version,
+            'torch_version': torch.__version__,
+            'cuda_available': torch.cuda.is_available(),
+            'cuda_version': torch.version.cuda if torch.cuda.is_available() else 'N/A',
+            'gpu_count': torch.cuda.device_count() if torch.cuda.is_available() else 0
+        }
+        logger.info(f"System Information: {system_info}")
+        return system_info
+    except Exception as e:
+        logger.error(f"Error logging system info: {str(e)}")
+        return None
+
+# Modify the startup event
 @app.on_event("startup")
 async def startup_event():
     try:
-        logger.info("Initializing MusicGen on startup")
-        init_musicgen()
-        logger.info("MusicGen initialized successfully")
+        # Log system information
+        system_info = log_system_info()
+        
+        # Check GPU availability
+        has_gpu, gpu_info = check_gpu_availability()
+        
+        # Set device
+        device = torch.device("cuda" if has_gpu else "cpu")
+        logger.info(f"Using device: {device}")
+        
+        # Initialize models with device
+        logger.info("Initializing models...")
+        init_musicgen(device)
+        logger.info("Models initialized successfully")
+        
     except Exception as e:
-        logger.error(f"Failed to initialize MusicGen: {str(e)}")
+        logger.error(f"Failed to initialize models: {str(e)}")
         raise
 
 @app.get("/")

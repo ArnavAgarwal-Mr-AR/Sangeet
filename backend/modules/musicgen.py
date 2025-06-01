@@ -8,27 +8,40 @@ logger = logging.getLogger(__name__)
 
 model = None
 processor = None
-device = "cuda" if torch.cuda.is_available() else "cpu"
-logger.info(f"Using device: {device}")
 
-def init_musicgen():
+def init_musicgen(device=None):
     try:
         global model, processor
         logger.info("Initializing MusicGen model")
         
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
         try:
-            processor = MusicgenProcessor.from_pretrained("facebook/musicgen-small")
+            processor = MusicgenProcessor.from_pretrained(
+                "facebook/musicgen-small",
+                device_map=device
+            )
         except Exception as e:
             logger.error(f"Failed to load MusicGen processor: {str(e)}")
             raise
             
         try:
-            model = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small").to(device)
+            model = MusicgenForConditionalGeneration.from_pretrained(
+                "facebook/musicgen-small",
+                device_map=device
+            ).to(device)
+            
+            # Enable model optimization if on GPU
+            if device.type == "cuda":
+                model = model.half()  # Use FP16 for better GPU memory usage
+                torch.cuda.empty_cache()  # Clear GPU cache
+                
         except Exception as e:
             logger.error(f"Failed to load MusicGen model: {str(e)}")
             raise
             
-        logger.info("MusicGen model loaded successfully")
+        logger.info(f"MusicGen model loaded successfully on {device}")
         
     except Exception as e:
         logger.error(f"Error in init_musicgen: {str(e)}")

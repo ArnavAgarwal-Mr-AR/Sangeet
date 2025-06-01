@@ -1,5 +1,5 @@
-# Use Python 3.10.11 as the base image
-FROM python:3.10.11-slim
+# Use NVIDIA CUDA base image
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
 
 # Set working directory
 WORKDIR /app
@@ -9,14 +9,16 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     ffmpeg \
     libsndfile1 \
+    python3.10 \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
 COPY requirements.txt .
 
-RUN pip install --upgrade pip
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --upgrade pip
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
 COPY . .
