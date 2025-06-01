@@ -2,13 +2,14 @@ services:
   - type: web
     name: vocaliq-backend
     env: docker
-    rootDir: backend
-    dockerfilePath: ./Dockerfile
+    rootDir: backend # Ensure this is correct (if your app.py and Dockerfile are in 'backend/')
+    dockerfilePath: ./Dockerfile # Path relative to rootDir
+    dockerCommand: "uvicorn app:app --host 0.0.0.0 --port $PORT" # <-- CHANGED main:app to app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.11
-      - key: PORT
-        value: 8000
+      - key: PORT # Render will use this $PORT in the dockerCommand
+        value: 8000 # The port your app will listen on
     disk:
       name: audio-storage
       mountPath: /app/static

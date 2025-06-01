@@ -25,4 +25,4 @@ EXPOSE 8000
 
 # Command to run the application
 ENTRYPOINT ["uvicorn"]
-CMD ["main:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["app:app", "--host", "0.0.0.0", "--port", "8000"] 
