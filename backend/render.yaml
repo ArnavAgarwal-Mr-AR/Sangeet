@@ -6,7 +6,7 @@ services:
     dockerfilePath: ./Dockerfile
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.0
+        value: 3.10.11
       - key: PORT
         value: 8000
     disk:
