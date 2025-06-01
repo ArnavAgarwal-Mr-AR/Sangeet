@@ -4,7 +4,7 @@ services:
     env: docker
     rootDir: backend # Ensure this is correct (if your app.py and Dockerfile are in 'backend/')
     dockerfilePath: ./Dockerfile # Path relative to rootDir
-    dockerCommand: "uvicorn app:app --host 0.0.0.0 --port $PORT" # <-- CHANGED main:app to app:app
+    dockerCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.11
