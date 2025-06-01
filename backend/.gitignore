@@ -1,0 +1,7 @@
+.env
+__pycache__/
+.gradio
+beats
+commands.txt
+env
+app.log

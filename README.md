@@ -1,4 +1,6 @@
-# Musicano
+# Vocaliq
+Team: Spinning Wheel
+
 Our submission to 100xbuildathon2
 
 # AI-Powered Music Collaboration Platform 🎤🤖🎵
@@ -69,3 +71,22 @@ For rapping, the AI uses a fine-tuned Qwen model to generate context-aware rap b
 6. Vocals and beat recorded with optional autotune/effects  
 7. Final mix created and saved  
 
+## Usage
+
+Clone Repository
+```
+git clone -b feature https://github.com/ArnavAgarwal-Mr-AR/Sangeet.git
+```
+
+```
+cd frontend
+```
+
+Install Dependencies
+```
+npm install
+```
+Run the Application
+```
+npm run dev
+```
