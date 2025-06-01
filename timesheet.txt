@@ -1,0 +1,3 @@
+The main aim of this file is to log every commit and step that we took in making this product (not just a project).
+
+30 May: 3.25pm --> Created this repo (inital commit + this text file)
