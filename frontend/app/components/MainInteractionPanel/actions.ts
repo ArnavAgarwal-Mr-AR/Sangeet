@@ -2,6 +2,11 @@
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
+// Log the backend URL in development
+if (process.env.NODE_ENV === 'development') {
+  console.log('Using backend URL:', BACKEND_URL);
+}
+
 export async function generateBeat(prompt: string) {
     try {
         console.log('Sending request to backend with prompt:', prompt);
