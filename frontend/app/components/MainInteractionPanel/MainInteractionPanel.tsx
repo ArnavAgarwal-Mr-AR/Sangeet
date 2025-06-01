@@ -3,7 +3,8 @@
 
 import React, { useState, ChangeEvent, useEffect, useRef } from 'react';
 import { FaUpload, FaPlay, FaArrowUp, FaPlus, FaTimes, FaMicrophone, FaStop } from 'react-icons/fa'; // Using react-icons
-import { generateBeat, BACKEND_URL } from './actions';
+import { generateBeat } from './actions';
+import { BACKEND_URL } from '../../config';
 
 interface MainInteractionPanelProps {
   onRun: (data: { prompt: string; vocalFile?: File; beatsFile?: File; generatedAudioUrl?: string }) => void;
@@ -23,6 +24,7 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [currentBeatPath, setCurrentBeatPath] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const plusButtonRef = useRef<HTMLButtonElement>(null);
   const uploadMenuRef = useRef<HTMLDivElement>(null);
@@ -33,6 +35,7 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
   const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const beatAudioRef = useRef<HTMLAudioElement | null>(null);
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
   // Cleanup audio URL when component unmounts
@@ -95,6 +98,12 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
         const newAudioUrl = URL.createObjectURL(result.audioBlob);
         console.log('Created audio URL:', newAudioUrl);
         setAudioUrl(newAudioUrl);
+        
+        // Store the beat path from the result
+        if (result.beat_path) {
+          setCurrentBeatPath(result.beat_path);
+        }
+        
         onRun({
           prompt,
           vocalFile: vocalFile || undefined,
@@ -133,7 +142,10 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
 
   // WebSocket connection effect - only connect when we have an audio URL
   useEffect(() => {
-    if (!audioUrl) return;
+    if (!audioUrl) {
+      console.log('No audio URL, skipping WebSocket connection');
+      return;
+    }
 
     const connectWebSocket = () => {
       const ws = new WebSocket(`${BACKEND_URL.replace('http', 'ws')}/ws`);
@@ -146,17 +158,21 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
       
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'lyrics') {
-            console.log('New lyrics:', data.content);
-            // You might want to display these lyrics in the UI
-          } else if (data.type === 'audio') {
-            const audioBlob = new Blob([data.content], { type: 'audio/wav' });
+          // Check if the message is binary data
+          if (event.data instanceof Blob) {
+            const audioBlob = new Blob([event.data], { type: 'audio/wav' });
             const audioUrl = URL.createObjectURL(audioBlob);
             const audio = new Audio(audioUrl);
             audio.play().catch(error => {
               console.error('Error playing audio:', error);
             });
+          } else {
+            // Handle JSON messages (like lyrics)
+            const data = JSON.parse(event.data);
+            if (data.type === 'lyrics') {
+              console.log('New lyrics:', data.content);
+              // You might want to display these lyrics in the UI
+            }
           }
         } catch (error) {
           console.error('Error processing WebSocket message:', error);
@@ -196,7 +212,15 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
       mediaRecorderRef.current = mediaRecorder;
       
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && wsConnection?.readyState === WebSocket.OPEN) {
+        if (event.data.size > 0 && wsConnection?.readyState === WebSocket.OPEN && currentBeatPath) {
+          // Use the stored beat path instead of extracting from audioUrl
+          const message = {
+            beat_path: currentBeatPath,
+            prompt: prompt
+          };
+          wsConnection.send(JSON.stringify(message));
+          
+          // Then send the audio data
           wsConnection.send(event.data);
         }
       };
@@ -204,6 +228,14 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
       mediaRecorder.start(100);
       setAudioState(prev => ({ ...prev, isRecording: true }));
       setError(null);
+
+      // Start playing the beat loop
+      if (beatAudioRef.current) {
+        beatAudioRef.current.loop = true;
+        beatAudioRef.current.play().catch(error => {
+          console.error('Error playing beat loop:', error);
+        });
+      }
     } catch (error) {
       console.error('Error accessing microphone:', error);
       setError('Failed to access microphone. Please check permissions.');
@@ -215,6 +247,14 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
       setAudioState(prev => ({ ...prev, isRecording: false }));
+    }
+    // Note: We don't stop the beat audio here to keep it playing
+  };
+
+  const stopBeatLoop = () => {
+    if (beatAudioRef.current) {
+      beatAudioRef.current.pause();
+      beatAudioRef.current.currentTime = 0;
     }
   };
 
@@ -291,6 +331,12 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
             >
               Your browser does not support the audio element.
             </audio>
+            {/* Hidden audio element for beat loop */}
+            <audio
+              ref={beatAudioRef}
+              src={audioUrl}
+              className="hidden"
+            />
           </div>
         )}
 
@@ -380,7 +426,7 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
           </div>
         )}
 
-        {/* Recording button */}
+        {/* Recording Controls */}
         {audioUrl && (
           <div className="flex gap-4 mt-4">
             <button
@@ -401,6 +447,12 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
                   <FaMicrophone /> Start Recording
                 </>
               )}
+            </button>
+            <button
+              onClick={stopBeatLoop}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-600 hover:bg-gray-700"
+            >
+              <FaStop /> Stop Beat
             </button>
           </div>
         )}

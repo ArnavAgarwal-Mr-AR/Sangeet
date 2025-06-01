@@ -26,6 +26,10 @@ def text_to_speech(text: str, out_path="tts_output.wav"):
         if not text or not isinstance(text, str):
             raise ValueError("Invalid text input provided")
             
+        # Add padding for very short inputs
+        if len(text) < 5:
+            text = f"Start {text} end"
+            
         logger.info(f"Converting text to speech: {text}")
         
         try:

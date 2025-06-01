@@ -1,11 +1,11 @@
 'use server';
 
-export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:10000';
+import { BACKEND_URL } from "@/app/config";
 
 // Log the backend URL in development
-//if (process.env.NODE_ENV === 'development') {
-  //console.log('Using backend URL:', BACKEND_URL);
-//}
+if (process.env.NODE_ENV === 'development') {
+  console.log('Using backend URL:', BACKEND_URL);
+}
 
 export async function generateBeat(prompt: string) {
     try {
@@ -36,7 +36,7 @@ export async function generateBeat(prompt: string) {
             console.log('Fetching audio file from path:', cleanPath);
             
             // Construct the full URL for the audio file
-            const audioUrl = `${BACKEND_URL}/${cleanPath}`;
+            const audioUrl = `${BACKEND_URL}/static/${cleanPath}`;
             console.log('Full audio URL:', audioUrl);
             
             const audioResponse = await fetch(audioUrl);

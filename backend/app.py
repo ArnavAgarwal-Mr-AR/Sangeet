@@ -14,7 +14,6 @@ import asyncio
 import json
 import torch
 import platform
-import subprocess
 import sys
 
 # Import all required modules
@@ -44,14 +43,18 @@ AUDIO_OUTPUT = "tts_output.wav"
 MIXED_OUTPUT = "mixed_output.wav"
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
-STATIC_DIR = os.getenv("STATIC_DIR", "static")
+# Get absolute paths for static directories
+STATIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "static"))
 if not os.path.exists(STATIC_DIR):
     os.makedirs(STATIC_DIR)
+    logger.info(f"Created static directory at: {STATIC_DIR}")
 
 # Create beats directory inside static if it doesn't exist
 BEATS_DIR = os.path.join(STATIC_DIR, "beats")
 if not os.path.exists(BEATS_DIR):
     os.makedirs(BEATS_DIR)
+    logger.info(f"Created beats directory at: {BEATS_DIR}")
+
 
 # Pydantic models for request validation
 class BeatRequest(BaseModel):
@@ -62,6 +65,10 @@ class SpeechRequest(BaseModel):
 
 class FreestyleRequest(BaseModel):
     prompt: str
+
+class LyricsRequest(BaseModel):
+    prompt: str
+    beat_path: str
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -125,9 +132,13 @@ async def startup_event():
     try:
         # Log system information
         system_info = log_system_info()
+        logger.info(f"System Information: {system_info}")
         
         # Check GPU availability
         has_gpu, gpu_info = check_gpu_availability()
+        logger.info(f"GPU Available: {has_gpu}")
+        if gpu_info:
+            logger.info(f"GPU Information: {gpu_info}")
         
         # Set device
         device = torch.device("cuda" if has_gpu else "cpu")
@@ -135,11 +146,17 @@ async def startup_event():
         
         # Initialize models with device
         logger.info("Initializing models...")
-        init_musicgen(device)
-        logger.info("Models initialized successfully")
+        try:
+            init_musicgen(device)
+            logger.info("MusicGen model initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize MusicGen model: {str(e)}")
+            logger.error(f"Full error details: {str(e.__class__.__name__)}: {str(e)}")
+            raise
         
     except Exception as e:
         logger.error(f"Failed to initialize models: {str(e)}")
+        logger.error(f"Full error details: {str(e.__class__.__name__)}: {str(e)}")
         raise
 
 @app.get("/")
@@ -153,33 +170,50 @@ async def root():
     }
 
 @app.post("/generate/beat")
-async def generate_beat(request: Request):
+async def generate_beat(request: BeatRequest):
     """Generate a beat based on the provided prompt"""
     try:
-        body = await request.json()
-        logger.info(f"Received request body: {body}")
+        logger.info(f"Beat generation requested with prompt: {request.prompt}")
         
-        if not isinstance(body, dict) or "prompt" not in body:
-            raise HTTPException(status_code=400, detail="Invalid request body. Expected {'prompt': 'string'}")
+        # Get the beat path and ensure it exists
+        try:
+            beat_path = get_beat_path(request.prompt)
+            # Use the correct static directory path
+            full_path = os.path.join(STATIC_DIR, beat_path)
+            logger.info(f"Looking for beat file at: {full_path}")
             
-        prompt = body["prompt"]
-        logger.info(f"Beat generation requested with prompt: {prompt}")
-        beat_path = get_beat_path(prompt)
-        return {
-            "status": "success",
-            "message": "Beat generated successfully",
-            "beat_path": beat_path
-        }
+            if not os.path.exists(full_path):
+                logger.error(f"Beat file not found at path: {full_path}")
+                raise HTTPException(status_code=500, detail="Failed to generate beat file")
+                
+            logger.info(f"Beat generated successfully at: {full_path}")
+            
+            # Return both the path and the file
+            return {
+                "status": "success",
+                "message": "Beat generated successfully",
+                "beat_path": beat_path,
+                "file_url": f"/static/{beat_path}"
+            }
+        except Exception as e:
+            logger.error(f"Error in beat generation: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to generate beat: {str(e)}")
+            
     except Exception as e:
-        logger.error(f"Error generating beat: {str(e)}")
+        logger.error(f"Error in generate_beat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate/lyrics")
-async def generate_lyrics():
+async def generate_lyrics(request: LyricsRequest):
     """Generate a rap line"""
     try:
-        logger.info("Lyrics generation requested")
-        line = generate_line()
+        logger.info(f"Lyrics generation requested with beat: {request.beat_path} and prompt: {request.prompt}")
+        # Get the full path of the beat file
+        beat_file_path = os.path.join(STATIC_DIR, request.beat_path)
+        if not os.path.exists(beat_file_path):
+            raise HTTPException(status_code=404, detail="Beat file not found")
+            
+        line = generate_line(beat_file_path, request.prompt)
         return {
             "status": "success",
             "message": "Lyrics generated successfully",
@@ -217,8 +251,13 @@ async def freestyle_session(
         beat_path = get_beat_path(request.prompt)
         logger.info(f"Beat generated at: {beat_path}")
         
-        # Generate lyrics
-        line = generate_line()
+        # Get the full path of the beat file
+        beat_file_path = os.path.join(STATIC_DIR, beat_path)
+        if not os.path.exists(beat_file_path):
+            raise HTTPException(status_code=404, detail="Beat file not found")
+        
+        # Generate lyrics with both beat file and prompt
+        line = generate_line(beat_file_path, request.prompt)
         logger.info(f"Generated line: {line}")
         
         # Generate speech
@@ -265,32 +304,109 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            # Receive audio data from client
-            data = await websocket.receive_bytes()
-            
-            # Process audio data (you'll need to implement this)
-            # For now, we'll just generate new lyrics
-            line = generate_line()
-            
-            # Send lyrics back to client
-            await websocket.send_json({
-                "type": "lyrics",
-                "content": line
-            })
-            
-            # Generate speech for the lyrics
-            text_to_speech(line, out_path=AUDIO_OUTPUT)
-            
-            # Send audio back to client
-            with open(AUDIO_OUTPUT, 'rb') as f:
-                audio_data = f.read()
-                await websocket.send_json({
-                    "type": "audio",
-                    "content": audio_data
-                })
+            try:
+                # Receive message from client
+                message = await websocket.receive_json()
+                beat_path = message.get("beat_path")
+                prompt = message.get("prompt")
+
+                logger.info(f"Received message: {message}")
+                logger.info(f"Beat path: {beat_path}")
+                logger.info(f"Prompt: {prompt}")
                 
-    except WebSocketDisconnect:
-        print("Client disconnected")
+                if not beat_path or not prompt:
+                    raise ValueError("Missing beat_path or prompt in request")
+                
+                # Normalize the beat path to use forward slashes
+                beat_path = beat_path.replace('\\', '/')
+                
+                # Get the full path of the beat file
+                beat_file_path = os.path.normpath(os.path.join(STATIC_DIR, beat_path))
+                logger.info(f"Looking for beat file at: {beat_file_path}")
+                
+                # List available files in the beats directory for debugging
+                beats_dir = os.path.join(STATIC_DIR, "beats")
+                if os.path.exists(beats_dir):
+                    available_files = os.listdir(beats_dir)
+                    logger.info(f"Available files in beats directory: {available_files}")
+                
+                if not os.path.exists(beat_file_path):
+                    logger.error(f"Beat file not found at: {beat_file_path}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "content": f"Beat file not found at: {beat_path}"
+                    })
+                    continue
+                
+                # Process audio data with both beat file and prompt
+                try:
+                    line = generate_line(beat_file_path, prompt)
+                    
+                    # Ensure the line is not too short
+                    if len(line) < 5:
+                        line = f"Start {line} end"
+                    
+                    # Send lyrics back to client as JSON
+                    await websocket.send_json({
+                        "type": "lyrics",
+                        "content": line
+                    })
+                    
+                    # Generate speech for the lyrics
+                    text_to_speech(line, out_path=AUDIO_OUTPUT)
+                    
+                    # Send audio back to client as binary data
+                    with open(AUDIO_OUTPUT, 'rb') as f:
+                        audio_data = f.read()
+                        await websocket.send_bytes(audio_data)
+                except Exception as e:
+                    logger.error(f"Error processing audio: {str(e)}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "content": f"Error processing audio: {str(e)}"
+                    })
+                    
+            except WebSocketDisconnect:
+                logger.info("Client disconnected")
+                break
+            except Exception as e:
+                logger.error(f"Error in WebSocket loop: {str(e)}")
+                try:
+                    await websocket.send_json({
+                        "type": "error",
+                        "content": str(e)
+                    })
+                except:
+                    break
+                
+    except Exception as e:
+        logger.error(f"WebSocket error: {str(e)}")
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass
+
+# Add a dedicated endpoint for serving beat files
+@app.get("/beats/{filename}")
+async def get_beat(filename: str):
+    """Get generated beat file"""
+    try:
+        file_path = os.path.join(BEATS_DIR, filename)
+        logger.info(f"Attempting to serve beat file from: {file_path}")
+        
+        if not os.path.exists(file_path):
+            logger.error(f"Beat file not found at: {file_path}")
+            raise HTTPException(status_code=404, detail="Beat file not found")
+            
+        return FileResponse(
+            file_path,
+            media_type="audio/wav",
+            filename=filename
+        )
+    except Exception as e:
+        logger.error(f"Error retrieving beat file: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
