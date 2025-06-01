@@ -2,11 +2,16 @@
 "use client";
 
 import React, { useState, ChangeEvent, useEffect, useRef } from 'react';
-import { FaUpload, FaPlay, FaArrowUp, FaPlus, FaTimes } from 'react-icons/fa'; // Using react-icons
+import { FaUpload, FaPlay, FaArrowUp, FaPlus, FaTimes, FaMicrophone, FaStop } from 'react-icons/fa'; // Using react-icons
 import { generateBeat } from './actions';
 
 interface MainInteractionPanelProps {
   onRun: (data: { prompt: string; vocalFile?: File; beatsFile?: File; generatedAudioUrl?: string }) => void;
+}
+
+interface AudioState {
+  isRecording: boolean;
+  isPlaying: boolean;
 }
 
 const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) => {
@@ -21,6 +26,13 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
   const audioRef = useRef<HTMLAudioElement>(null);
   const plusButtonRef = useRef<HTMLButtonElement>(null);
   const uploadMenuRef = useRef<HTMLDivElement>(null);
+  const [audioState, setAudioState] = useState<AudioState>({
+    isRecording: false,
+    isPlaying: false
+  });
+  const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   // Cleanup audio URL when component unmounts
   useEffect(() => {
@@ -102,6 +114,61 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
       setIsLoading(false);
     }
   };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0 && wsConnection?.readyState === WebSocket.OPEN) {
+          wsConnection.send(event.data);
+        }
+      };
+      
+      mediaRecorder.start(100); // Send data every 100ms
+      setAudioState(prev => ({ ...prev, isRecording: true }));
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      setAudioState(prev => ({ ...prev, isRecording: false }));
+    }
+  };
+
+  useEffect(() => {
+    const ws = new WebSocket(`${BACKEND_URL.replace('http', 'ws')}/ws`);
+    
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+      setWsConnection(ws);
+    };
+    
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'lyrics') {
+        // Handle new lyrics
+        console.log('New lyrics:', data.content);
+      } else if (data.type === 'audio') {
+        // Handle AI rap audio
+        const audioBlob = new Blob([data.content], { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        // Play the AI rap
+        const audio = new Audio(audioUrl);
+        audio.play();
+      }
+    };
+    
+    return () => {
+      ws.close();
+    };
+  }, []);
 
   return (
     <div className="flex-grow p-6 flex flex-col items-center justify-start pt-55">
@@ -247,6 +314,27 @@ const MainInteractionPanel: React.FC<MainInteractionPanelProps> = ({ onRun }) =>
               </button>
             </span>
           )}
+        </div>
+
+        <div className="flex gap-4 mt-4">
+          <button
+            onClick={audioState.isRecording ? stopRecording : startRecording}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+              audioState.isRecording 
+                ? 'bg-red-600 hover:bg-red-700' 
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            {audioState.isRecording ? (
+              <>
+                <FaStop /> Stop Recording
+              </>
+            ) : (
+              <>
+                <FaMicrophone /> Start Recording
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

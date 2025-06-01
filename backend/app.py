@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,6 +9,9 @@ from dotenv import load_dotenv
 import soundfile as sf
 from typing import Optional
 from pydantic import BaseModel
+from fastapi.websockets import WebSocketDisconnect
+import asyncio
+import json
 
 # Import all required modules
 from modules.beat_selector import get_beat_path
@@ -202,6 +205,39 @@ async def get_audio(filename: str):
     except Exception as e:
         logger.error(f"Error retrieving audio file: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Add WebSocket endpoint
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            # Receive audio data from client
+            data = await websocket.receive_bytes()
+            
+            # Process audio data (you'll need to implement this)
+            # For now, we'll just generate new lyrics
+            line = generate_line()
+            
+            # Send lyrics back to client
+            await websocket.send_json({
+                "type": "lyrics",
+                "content": line
+            })
+            
+            # Generate speech for the lyrics
+            text_to_speech(line, out_path=AUDIO_OUTPUT)
+            
+            # Send audio back to client
+            with open(AUDIO_OUTPUT, 'rb') as f:
+                audio_data = f.read()
+                await websocket.send_json({
+                    "type": "audio",
+                    "content": audio_data
+                })
+                
+    except WebSocketDisconnect:
+        print("Client disconnected")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
