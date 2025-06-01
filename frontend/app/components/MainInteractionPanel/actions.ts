@@ -1,6 +1,6 @@
 'use server';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:10000';
 
 // Log the backend URL in development
 if (process.env.NODE_ENV === 'development') {
